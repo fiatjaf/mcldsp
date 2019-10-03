@@ -1,0 +1,407 @@
+package main
+
+import (
+	"database/sql"
+	"errors"
+	"fmt"
+	"os/exec"
+	"reflect"
+	"strings"
+
+	docopt "github.com/docopt/docopt-go"
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
+	_ "github.com/mattn/go-sqlite3"
+)
+
+const USAGE = `
+mcldsp
+
+Migrate your c-lightning database from SQLite to Postgres
+
+Usage:
+  mcldsp migrate --sqlite=<sqlite_file> --postgres=<postgres_dsn> --lightningd=<lightningd_executable>
+  mcldsp delete --postgres=<postgres_dsn>
+`
+
+var opts docopt.Opts
+var lite *sqlx.DB
+var pg *sqlx.DB
+var err error
+
+func main() {
+	opts, _ = docopt.ParseDoc(USAGE)
+
+	switch {
+	case opts["migrate"].(bool):
+		lite, err = sqlx.Connect("sqlite3", opts["--sqlite"].(string))
+		if err != nil {
+			fmt.Println("sqlite connection error", err)
+			return
+		}
+
+		pg, err = sqlx.Connect("postgres", opts["--postgres"].(string))
+		if err != nil {
+			fmt.Println("postgres connection error", err)
+			return
+		}
+
+		// create database structure
+		lightningd := opts["--lightningd"].(string)
+		exec.Command(lightningd, "--lightning-dir=/tmp/mcldsp-lightning", "--network=regtest").Run()
+
+		// check tables are created
+		var tablecount int
+		err = pg.Get(&tablecount, "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'")
+		if tablecount != 18 {
+			fmt.Println("error creating postgres database structure with lightningd", err)
+			return
+		}
+
+		// check htlc_sigs is empty
+		var chtlcsigns int
+		err = lite.Get(&chtlcsigns, "SELECT count(*) FROM htlc_sigs")
+		if err != nil || chtlcsigns != 0 {
+			fmt.Println("htlc_sigs table is not empty", err)
+			return
+		}
+
+		// check version
+		var dbversionlite int
+		var dbversionpg int
+		err1 = lite.Get(&dbversion, "SELECT version FROM version")
+		err2 = pg.Get(&dbversion, "SELECT version FROM version")
+		if err1 != nil || err2 != nil {
+			fmt.Println("error fetching db versions", err)
+			return
+		}
+		if dbversionlite != dbversionpg {
+			fmt.Println("db versions mismatch", dbversionlite, dbversionpg)
+			return
+		}
+
+		// start updating on a big transaction
+		pgx, err := pg.Beginx()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		defer pgx.Rollback()
+
+		// update vars
+		var vars []struct {
+			Name    sql.NullString `db:"name"`
+			Val     sql.NullString `db:"val"`
+			Intval  sql.NullInt64  `db:"intval"`
+			Blobval sqlblob        `db:"blobval"`
+		}
+		err = lite.Select(&vars, `SELECT * FROM vars`)
+		if err != nil {
+			fmt.Println("error selecting vars", err)
+			return
+		}
+		for _, v := range vars {
+			if v.Name.String == "genesis_hash" {
+				// apparently old versions stored a blob in the 'val' column, but this is
+				// no longer needed nor supported in postgres.
+				v.Val = sql.NullString{Valid: false}
+			}
+
+			_, err := pgx.NamedExec(`
+INSERT INTO vars
+VALUES (:name, :val, :intval, :blobval)
+ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
+            `, v)
+			if err != nil {
+				fmt.Println(v, "error inserting var", err)
+				return
+			}
+		}
+
+		// update all the other tables except version and db_upgrades
+		if err := copyRows(pgx, "blocks", struct {
+			Height   sql.NullInt64 `db:"height"`
+			Hash     sqlblob       `db:"hash"`
+			PrevHash sqlblob       `db:"prev_hash"`
+		}{}, "(height) DO NOTHING"); err != nil {
+			return
+		}
+
+		if err := copyRows(pgx, "channel_configs", struct {
+			Id                   sql.NullInt64 `db:"id"`
+			DustLimit            sql.NullInt64 `db:"dust_limit_satoshis"`
+			MaxHTLCValueInFlight sql.NullInt64 `db:"max_htlc_value_in_flight_msat"`
+			ChannelReserve       sql.NullInt64 `db:"channel_reserve_satoshis"`
+			HTLCMinimum          sql.NullInt64 `db:"htlc_minimum_msat"`
+			ToSelfDelay          sql.NullInt64 `db:"to_self_delay"`
+			MaxAcceptedHTLCs     sql.NullInt64 `db:"max_accepted_htlcs"`
+		}{}, "(id) DO NOTHING"); err != nil {
+			return
+		}
+
+		if err := copyRows(pgx, "peers", struct {
+			Id      int64   `db:"id"`
+			NodeId  sqlblob `db:"node_id"`
+			Address string  `db:"address"`
+		}{}, "(id) DO NOTHING"); err != nil {
+			return
+		}
+
+		if err := copyRows(pgx, "channels", struct {
+			Id                            int64         `db:"id"`
+			PeerId                        int64         `db:"peer_id"`
+			ShortChannelId                string        `db:"short_channel_id"`
+			ChannelConfigLocal            int64         `db:"channel_config_local"`
+			ChannelConfigRemote           int64         `db:"channel_config_remote"`
+			State                         int64         `db:"state"`
+			Funder                        int64         `db:"funder"`
+			ChannelFlags                  int64         `db:"channel_flags"`
+			MinimumDepth                  int64         `db:"minimum_depth"`
+			NextIndexLocal                int64         `db:"next_index_local"`
+			NextIndexRemote               int64         `db:"next_index_remote"`
+			NextHtlcId                    int64         `db:"next_htlc_id"`
+			FundingTxId                   sqlblob       `db:"funding_tx_id"`
+			FundingTxOutnum               int64         `db:"funding_tx_outnum"`
+			FundingSatoshi                int64         `db:"funding_satoshi"`
+			FundingLockedRemote           int64         `db:"funding_locked_remote"`
+			PushMsatoshi                  int64         `db:"push_msatoshi"`
+			MsatoshiLocal                 int64         `db:"msatoshi_local"`
+			FundingkeyRemote              sqlblob       `db:"fundingkey_remote"`
+			RevocationBasepointRemote     sqlblob       `db:"revocation_basepoint_remote"`
+			PaymentBasepointRemote        sqlblob       `db:"payment_basepoint_remote"`
+			HtlcBasepointRemote           sqlblob       `db:"htlc_basepoint_remote"`
+			DelayedPaymentBasepointRemote sqlblob       `db:"delayed_payment_basepoint_remote"`
+			PerCommitRemote               sqlblob       `db:"per_commit_remote"`
+			OldPerCommitRemote            sqlblob       `db:"old_per_commit_remote"`
+			LocalFeeratePerKw             int64         `db:"local_feerate_per_kw"`
+			RemoteFeeratePerKw            int64         `db:"remote_feerate_per_kw"`
+			ShachainRemoteId              int64         `db:"shachain_remote_id"`
+			ShutdownScriptpubkeyRemote    sqlblob       `db:"shutdown_scriptpubkey_remote"`
+			ShutdownKeyidxLocal           int64         `db:"shutdown_keyidx_local"`
+			LastSentCommitState           sql.NullInt64 `db:"last_sent_commit_state"`
+			LastSentCommitId              sql.NullInt64 `db:"last_sent_commit_id"`
+			LastTx                        sqlblob       `db:"last_tx"`
+			LastSig                       sqlblob       `db:"last_sig"`
+			ClosingFeeReceived            sql.NullInt64 `db:"closing_fee_received"`
+			ClosingSigReceived            sqlblob       `db:"closing_sig_received"`
+			FirstBlocknum                 int64         `db:"first_blocknum"`
+			LastWasRevoke                 int64         `db:"last_was_revoke"`
+			InPaymentsOffered             sql.NullInt64 `db:"in_payments_offered"`
+			InPaymentsFulfilled           sql.NullInt64 `db:"in_payments_fulfilled"`
+			InMsatoshiOffered             sql.NullInt64 `db:"in_msatoshi_offered"`
+			InMsatoshiFulfilled           sql.NullInt64 `db:"in_msatoshi_fulfilled"`
+			OutPaymentsOffered            sql.NullInt64 `db:"out_payments_offered"`
+			OutPaymentsFulfilled          sql.NullInt64 `db:"out_payments_fulfilled"`
+			OutMsatoshiOffered            sql.NullInt64 `db:"out_msatoshi_offered"`
+			OutMsatoshiFulfilled          sql.NullInt64 `db:"out_msatoshi_fulfilled"`
+			MinPossibleFeerate            int64         `db:"min_possible_feerate"`
+			MaxPossibleFeerate            int64         `db:"max_possible_feerate"`
+			MsatoshiToUsMin               int64         `db:"msatoshi_to_us_min"`
+			MsatoshiToUsMax               int64         `db:"msatoshi_to_us_max"`
+			FuturePerCommitmentPoint      sqlblob       `db:"future_per_commitment_point"`
+			LastSentCommit                sqlblob       `db:"last_sent_commit"`
+			FeerateBase                   int64         `db:"feerate_base"`
+			FeeratePpm                    int64         `db:"feerate_ppm"`
+			RemoteUpfrontShutdownScript   sqlblob       `db:"remote_upfront_shutdown_script"`
+			RemoteAnnNodeSig              sqlblob       `db:"remote_ann_node_sig"`
+			RemoteAnnBitcoinSig           sqlblob       `db:"remote_ann_bitcoin_sig"`
+			OptionStaticRemotekey         int64         `db:"option_static_remotekey"`
+		}{}, "(id) DO NOTHING"); err != nil {
+			return
+		}
+
+		if err := copyRows(pgx, "channel_htlcs", struct {
+			Id             int64         `db:"id"`
+			ChannelId      int64         `db:"channel_id"`
+			ChannelHTLCId  int64         `db:"channel_htlc_id"`
+			Direction      int64         `db:"direction"`
+			OriginHTLC     sql.NullInt64 `db:"origin_htlc"`
+			MSatoshi       int64         `db:"msatoshi"`
+			CLTVExpiry     int64         `db:"cltv_expiry"`
+			PaymentHash    sqlblob       `db:"payment_hash"`
+			PaymentKey     sqlblob       `db:"payment_key"`
+			RoutingOnion   sqlblob       `db:"routing_onion"`
+			FailureMessage sqlblob       `db:"failuremsg"`
+			MalformedOnion int64         `db:"malformed_onion"`
+			HState         int64         `db:"hstate"`
+			SharedSecret   sqlblob       `db:"shared_secret"`
+			ReceivedTime   sql.NullInt64 `db:"received_time"`
+		}{}, "(id) DO NOTHING"); err != nil {
+			return
+		}
+
+		if err := copyRows(pgx, "transactions", struct {
+			Id          sqlblob       `db:"id"`
+			Blockheight int64         `db:"blockheight"`
+			Txindex     int64         `db:"txindex"`
+			Rawtx       sqlblob       `db:"rawtx"`
+			Type        int64         `db:"type"`
+			ChannelId   sql.NullInt64 `db:"channel_id"`
+		}{}, "(id) DO NOTHING"); err != nil {
+			return
+		}
+
+		if err := copyRows(pgx, "channeltxs", struct {
+			Id            int64   `db:"id"`
+			ChannelId     int64   `db:"channel_id"`
+			Type          int64   `db:"type"`
+			TransactionId sqlblob `db:"transaction_id"`
+			InputNum      int64   `db:"input_num"`
+			Blockheight   int64   `db:"blockheight"`
+		}{}, "(id) DO NOTHING"); err != nil {
+			return
+		}
+
+		if err := copyRows(pgx, "outputs", struct {
+			PrevOutTx          sqlblob       `db:"prev_out_tx"`
+			PrevOutIndex       int64         `db:"prev_out_index"`
+			Value              int64         `db:"value"`
+			Type               int64         `db:"type"`
+			Status             int64         `db:"status"`
+			Keyindex           int64         `db:"keyindex"`
+			ChannelId          sql.NullInt64 `db:"channel_id"`
+			PeerId             sqlblob       `db:"peer_id"`
+			CommitmentPoint    sqlblob       `db:"commitment_point"`
+			ConfirmationHeight int64         `db:"confirmation_height"`
+			SpendHeight        sql.NullInt64 `db:"spend_height"`
+			Scriptpubkey       sqlblob       `db:"scriptpubkey"`
+		}{}, "(prev_out_tx, prev_out_index) DO NOTHING"); err != nil {
+			return
+		}
+
+		if err := copyRows(pgx, "payments", struct {
+			Id              int64          `db:"id"`
+			Timestamp       int64          `db:"timestamp"`
+			Status          int64          `db:"status"`
+			PaymentHash     sqlblob        `db:"payment_hash"`
+			Destination     sqlblob        `db:"destination"`
+			Msatoshi        int64          `db:"msatoshi"`
+			PaymentPreimage sqlblob        `db:"payment_preimage"`
+			PathSecrets     sqlblob        `db:"path_secrets"`
+			RouteNodes      sqlblob        `db:"route_nodes"`
+			RouteChannels   sqlblob        `db:"route_channels"`
+			Failonionreply  sqlblob        `db:"failonionreply"`
+			Faildestperm    sql.NullInt64  `db:"faildestperm"`
+			Failindex       sql.NullInt64  `db:"failindex"`
+			Failcode        sql.NullInt64  `db:"failcode"`
+			Failnode        sqlblob        `db:"failnode"`
+			Failchannel     sql.NullString `db:"failchannel"`
+			Failupdate      sqlblob        `db:"failupdate"`
+			MsatoshiSent    int64          `db:"msatoshi_sent"`
+			Faildetail      sql.NullString `db:"faildetail"`
+			Description     string         `db:"description"`
+			Faildirection   sql.NullInt64  `db:"faildirection"`
+			Bolt11          string         `db:"bolt11"`
+		}{}, "(id) DO NOTHING"); err != nil {
+			return
+		}
+
+		if err := copyRows(pgx, "invoices", struct {
+			Id               int64         `db:"id"`
+			State            int64         `db:"state"`
+			Msatoshi         int64         `db:"msatoshi"`
+			PaymentHash      sqlblob       `db:"payment_hash"`
+			PaymentKey       sqlblob       `db:"payment_key"`
+			Label            string        `db:"label"`
+			ExpiryTime       int64         `db:"expiry_time"`
+			PayIndex         sql.NullInt64 `db:"pay_index"`
+			MsatoshiReceived sql.NullInt64 `db:"msatoshi_received"`
+			PaidTimestamp    sql.NullInt64 `db:"paid_timestamp"`
+			Bolt11           string        `db:"bolt11"`
+			Description      string        `db:"description"`
+		}{}, "(id) DO NOTHING"); err != nil {
+			return
+		}
+
+		if err := copyRows(pgx, "forwarded_payments", struct {
+			InHtlcId       int64         `db:"in_htlc_id"`
+			OutHtlcId      int64         `db:"out_htlc_id"`
+			InChannelScid  int64         `db:"in_channel_scid"`
+			OutChannelScid int64         `db:"out_channel_scid"`
+			InMsatoshi     int64         `db:"in_msatoshi"`
+			OutMsatoshi    int64         `db:"out_msatoshi"`
+			State          int64         `db:"state"`
+			ReceivedTime   int64         `db:"received_time"`
+			ResolvedTime   int64         `db:"resolved_time"`
+			Failcode       sql.NullInt64 `db:"failcode"`
+		}{}, "(in_htlc_id, out_htlc_id) DO NOTHING"); err != nil {
+			return
+		}
+
+		if err := copyRows(pgx, "shachains", struct {
+			Id       int64 `db:"id"`
+			MinIndex int64 `db:"min_index"`
+			NumValid int64 `db:"num_valid"`
+		}{}, "(id) DO NOTHING"); err != nil {
+			return
+		}
+
+		if err := copyRows(pgx, "shachain_known", struct {
+			ShachainId int64   `db:"shachain_id"`
+			Pos        int64   `db:"pos"`
+			Idx        int64   `db:"idx"`
+			Hash       sqlblob `db:"hash"`
+		}{}, "(shachain_id, pos) DO NOTHING"); err != nil {
+			return
+		}
+
+		if err := copyRows(pgx, "utxoset", struct {
+			Txid         sqlblob       `db:"txid"`
+			Outnum       int64         `db:"outnum"`
+			Blockheight  int64         `db:"blockheight"`
+			Spendheight  sql.NullInt64 `db:"spendheight"`
+			Txindex      int64         `db:"txindex"`
+			Scriptpubkey sqlblob       `db:"scriptpubkey"`
+			Satoshis     int64         `db:"satoshis"`
+		}{}, "(txid, outnum) DO NOTHING"); err != nil {
+			return
+		}
+
+		// end it
+		err = pgx.Commit()
+		if err != nil {
+			fmt.Println("error on final commit", err)
+			return
+		}
+	case opts["delete"].(bool):
+	}
+}
+
+func copyRows(pgx *sqlx.Tx, tableName string, kind interface{}, onconflict string) (err error) {
+	typ := reflect.TypeOf(kind)
+	if typ.Kind() != reflect.Struct {
+		return errors.New("kind given to copyRows is not a struct")
+	}
+
+	nfields := typ.NumField()
+	valuelabels := make([]string, nfields)
+	for i := 0; i < nfields; i++ {
+		valuelabels[i] = ":" + typ.Field(i).Tag.Get("db")
+	}
+
+	rows, err := lite.Queryx(`SELECT * FROM ` + tableName)
+	if err != nil {
+		fmt.Println("error selecting "+tableName, err)
+		return err
+	}
+
+	for rows.Next() {
+		vpointer := reflect.New(typ).Interface()
+		err := rows.StructScan(vpointer)
+		if err != nil {
+			fmt.Println(vpointer, "error scanning "+tableName+" row", err)
+			return err
+		}
+
+		_, err = pgx.NamedExec(`
+INSERT INTO `+tableName+`
+VALUES (`+strings.Join(valuelabels, ",")+`)
+ON CONFLICT `+onconflict+`
+            `, vpointer)
+		if err != nil {
+			fmt.Println(vpointer, "error inserting "+tableName, err)
+			return err
+		}
+	}
+	return nil
+}
