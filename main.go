@@ -2,12 +2,9 @@ package main
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
-	"reflect"
-	"strings"
 
 	docopt "github.com/docopt/docopt-go"
 	"github.com/jmoiron/sqlx"
@@ -135,7 +132,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 			Height   sql.NullInt64 `db:"height"`
 			Hash     sqlblob       `db:"hash"`
 			PrevHash sqlblob       `db:"prev_hash"`
-		}{}, "(height) DO NOTHING"); err != nil {
+		}{}, "height"); err != nil {
 			return
 		}
 
@@ -147,7 +144,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 			HTLCMinimum          sql.NullInt64 `db:"htlc_minimum_msat"`
 			ToSelfDelay          sql.NullInt64 `db:"to_self_delay"`
 			MaxAcceptedHTLCs     sql.NullInt64 `db:"max_accepted_htlcs"`
-		}{}, "(id) DO NOTHING"); err != nil {
+		}{}, "id"); err != nil {
 			return
 		}
 
@@ -155,7 +152,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 			Id      int64   `db:"id"`
 			NodeId  sqlblob `db:"node_id"`
 			Address string  `db:"address"`
-		}{}, "(id) DO NOTHING"); err != nil {
+		}{}, "id"); err != nil {
 			return
 		}
 
@@ -218,7 +215,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 			RemoteAnnNodeSig              sqlblob        `db:"remote_ann_node_sig"`
 			RemoteAnnBitcoinSig           sqlblob        `db:"remote_ann_bitcoin_sig"`
 			OptionStaticRemotekey         int64          `db:"option_static_remotekey"`
-		}{}, "(id) DO NOTHING"); err != nil {
+		}{}, "id"); err != nil {
 			return
 		}
 
@@ -238,7 +235,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 			HState         int64         `db:"hstate"`
 			SharedSecret   sqlblob       `db:"shared_secret"`
 			ReceivedTime   sql.NullInt64 `db:"received_time"`
-		}{}, "(id) DO NOTHING"); err != nil {
+		}{}, "id"); err != nil {
 			return
 		}
 
@@ -249,7 +246,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 			Rawtx       sqlblob       `db:"rawtx"`
 			Type        sql.NullInt64 `db:"type"`
 			ChannelId   sql.NullInt64 `db:"channel_id"`
-		}{}, "(id) DO NOTHING"); err != nil {
+		}{}, "id"); err != nil {
 			return
 		}
 
@@ -260,7 +257,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 			TransactionId sqlblob `db:"transaction_id"`
 			InputNum      int64   `db:"input_num"`
 			Blockheight   int64   `db:"blockheight"`
-		}{}, "(id) DO NOTHING"); err != nil {
+		}{}, "id"); err != nil {
 			return
 		}
 
@@ -277,7 +274,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 			ConfirmationHeight int64         `db:"confirmation_height"`
 			SpendHeight        sql.NullInt64 `db:"spend_height"`
 			Scriptpubkey       sqlblob       `db:"scriptpubkey"`
-		}{}, "(prev_out_tx, prev_out_index) DO NOTHING"); err != nil {
+		}{}, "prev_out_tx, prev_out_index"); err != nil {
 			return
 		}
 
@@ -304,7 +301,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 			Description     sql.NullString `db:"description"`
 			Faildirection   sql.NullInt64  `db:"faildirection"`
 			Bolt11          sql.NullString `db:"bolt11"`
-		}{}, "(id) DO NOTHING"); err != nil {
+		}{}, "id"); err != nil {
 			return
 		}
 
@@ -321,7 +318,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 			PaidTimestamp    sql.NullInt64 `db:"paid_timestamp"`
 			Bolt11           string        `db:"bolt11"`
 			Description      string        `db:"description"`
-		}{}, "(id) DO NOTHING"); err != nil {
+		}{}, "id"); err != nil {
 			return
 		}
 
@@ -336,7 +333,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 			ReceivedTime   sql.NullInt64 `db:"received_time"`
 			ResolvedTime   sql.NullInt64 `db:"resolved_time"`
 			Failcode       sql.NullInt64 `db:"failcode"`
-		}{}, "(in_htlc_id, out_htlc_id) DO NOTHING"); err != nil {
+		}{}, "in_htlc_id, out_htlc_id"); err != nil {
 			return
 		}
 
@@ -344,7 +341,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 			Id       int64 `db:"id"`
 			MinIndex int64 `db:"min_index"`
 			NumValid int64 `db:"num_valid"`
-		}{}, "(id) DO NOTHING"); err != nil {
+		}{}, "id"); err != nil {
 			return
 		}
 
@@ -353,7 +350,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 			Pos        int64   `db:"pos"`
 			Idx        int64   `db:"idx"`
 			Hash       sqlblob `db:"hash"`
-		}{}, "(shachain_id, pos) DO NOTHING"); err != nil {
+		}{}, "shachain_id, pos"); err != nil {
 			return
 		}
 
@@ -365,7 +362,33 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 			Txindex      int64         `db:"txindex"`
 			Scriptpubkey sqlblob       `db:"scriptpubkey"`
 			Satoshis     int64         `db:"satoshis"`
-		}{}, "(txid, outnum) DO NOTHING"); err != nil {
+		}{}, "txid, outnum"); err != nil {
+			return
+		}
+
+		// update sequences
+		if err := setSequence("channel_configs_id_seq"); err != nil {
+			return
+		}
+		if err := setSequence("channel_htlcs_id_seq"); err != nil {
+			return
+		}
+		if err := setSequence("channels_id_seq"); err != nil {
+			return
+		}
+		if err := setSequence("channeltxs_id_seq"); err != nil {
+			return
+		}
+		if err := setSequence("invoices_id_seq"); err != nil {
+			return
+		}
+		if err := setSequence("payments_id_seq1"); err != nil {
+			return
+		}
+		if err := setSequence("peers_id_seq"); err != nil {
+			return
+		}
+		if err := setSequence("shachains_id_seq"); err != nil {
 			return
 		}
 
@@ -377,43 +400,4 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 		}
 	case opts["delete"].(bool):
 	}
-}
-
-func copyRows(pgx *sqlx.Tx, tableName string, kind interface{}, onconflict string) (err error) {
-	typ := reflect.TypeOf(kind)
-	if typ.Kind() != reflect.Struct {
-		return errors.New("kind given to copyRows is not a struct")
-	}
-
-	nfields := typ.NumField()
-	valuelabels := make([]string, nfields)
-	for i := 0; i < nfields; i++ {
-		valuelabels[i] = ":" + typ.Field(i).Tag.Get("db")
-	}
-
-	rows, err := lite.Queryx(`SELECT * FROM ` + tableName)
-	if err != nil {
-		fmt.Println("error selecting "+tableName, err)
-		return err
-	}
-
-	for rows.Next() {
-		vpointer := reflect.New(typ).Interface()
-		err := rows.StructScan(vpointer)
-		if err != nil {
-			fmt.Println(vpointer, "error scanning "+tableName+" row", err)
-			return err
-		}
-
-		_, err = pgx.NamedExec(`
-INSERT INTO `+tableName+`
-VALUES (`+strings.Join(valuelabels, ",")+`)
-ON CONFLICT `+onconflict+`
-            `, vpointer)
-		if err != nil {
-			fmt.Println(vpointer, "error inserting "+tableName, err)
-			return err
-		}
-	}
-	return nil
 }
