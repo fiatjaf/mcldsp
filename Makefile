@@ -1,2 +1,2 @@
 mcldsp: $(shell find -name "*.go")
-	go build -o mcldsp
+	go build -ldflags="-s -w" -o mcldsp
