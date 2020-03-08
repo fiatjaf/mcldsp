@@ -13,6 +13,8 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+const version = 131
+const expectedTableCount = 20
 const USAGE = `
 mcldsp
 
@@ -53,7 +55,7 @@ func main() {
 	var tablecount int
 	err = pg.Get(&tablecount, "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'")
 	if tablecount == 0 {
-		// create database structure
+		// if not, create database structure
 		lightningd := *lightningd
 		cmd := exec.Command(lightningd,
 			"--lightning-dir=/tmp/mcldsp-lightning",
@@ -66,9 +68,12 @@ func main() {
 	}
 
 	// check tables are created
-	err = pg.Get(&tablecount, "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'")
-	if tablecount != 18 {
-		fmt.Println("postgres database structure wasn't created correctly", err)
+	var expectedTableCount int
+	var createdTableCount int
+	lite.Get(&expectedTableCount, "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name != 'android_metadata' AND name != 'sqlite_sequence'")
+	pg.Get(&createdTableCount, "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'")
+	if expectedTableCount != createdTableCount || createdTableCount < 18 {
+		fmt.Printf("postgres database structure wasn't created correctly: %v (expected %d tables to be created, got %d)\n", err, tablecount, createdTableCount)
 		return
 	}
 
@@ -89,8 +94,8 @@ func main() {
 		fmt.Println("error fetching db versions", err)
 		return
 	}
-	if dbversionlite != dbversionpg {
-		fmt.Println("db versions mismatch", dbversionlite, dbversionpg)
+	if dbversionlite != dbversionpg || dbversionpg != version {
+		fmt.Printf("db versions mismatch. expected %d, got sqlite:%d, postgres:%d\n", version, dbversionlite, dbversionpg)
 		return
 	}
 
@@ -150,14 +155,6 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 		ToSelfDelay          sql.NullInt64 `db:"to_self_delay"`
 		MaxAcceptedHTLCs     sql.NullInt64 `db:"max_accepted_htlcs"`
 	}{}, "id"); err != nil {
-		return
-	}
-
-	if err := copyRows(pgx, "channel_feerates", struct {
-		ChannelId    int64 `db:"channel_id"`
-		HState       int64 `db:"hstate"`
-		FeeRatePerKw int64 `db:"feerate_per_kw"`
-	}{}, "channel_id, hstate"); err != nil {
 		return
 	}
 
@@ -230,6 +227,14 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 		RemoteAnnBitcoinSig           sqlblob        `db:"remote_ann_bitcoin_sig"`
 		OptionStaticRemotekey         int64          `db:"option_static_remotekey"`
 	}{}, "id"); err != nil {
+		return
+	}
+
+	if err := copyRows(pgx, "channel_feerates", struct {
+		ChannelId    int64 `db:"channel_id"`
+		HState       int64 `db:"hstate"`
+		FeeRatePerKw int64 `db:"feerate_per_kw"`
+	}{}, "channel_id, hstate"); err != nil {
 		return
 	}
 
