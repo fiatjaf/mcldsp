@@ -148,6 +148,14 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 			return
 		}
 
+		if err := copyRows(pgx, "channel_feerates", struct {
+			ChannelId    int64 `db:"channel_id"`
+			HState       int64 `db:"hstate"`
+			FeeRatePerKw int64 `db:"feerate_per_kw"`
+		}{}, "channel_id, hstate"); err != nil {
+			return
+		}
+
 		if err := copyRows(pgx, "peers", struct {
 			Id      int64   `db:"id"`
 			NodeId  sqlblob `db:"node_id"`
@@ -185,6 +193,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 			LocalFeeratePerKw             int64          `db:"local_feerate_per_kw"`
 			RemoteFeeratePerKw            int64          `db:"remote_feerate_per_kw"`
 			ShachainRemoteId              int64          `db:"shachain_remote_id"`
+			ShutdownScriptpubkeyLocal     sqlblob        `db:"shutdown_scriptpubkey_local"`
 			ShutdownScriptpubkeyRemote    sqlblob        `db:"shutdown_scriptpubkey_remote"`
 			ShutdownKeyidxLocal           int64          `db:"shutdown_keyidx_local"`
 			LastSentCommitState           sql.NullInt64  `db:"last_sent_commit_state"`
@@ -235,6 +244,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 			HState         int64         `db:"hstate"`
 			SharedSecret   sqlblob       `db:"shared_secret"`
 			ReceivedTime   sql.NullInt64 `db:"received_time"`
+			LocalFailMsg   sqlblob       `db:"localfailmsg"`
 		}{}, "id"); err != nil {
 			return
 		}
@@ -247,6 +257,16 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 			Type        sql.NullInt64 `db:"type"`
 			ChannelId   sql.NullInt64 `db:"channel_id"`
 		}{}, "id"); err != nil {
+			return
+		}
+
+		if err := copyRows(pgx, "transaction_annotations", struct {
+			TxId     sqlblob       `db:"txid"`
+			Idx      int64         `db:"idx"`
+			Location int64         `db:"location"`
+			Type     int64         `db:"type"`
+			Channel  sql.NullInt64 `db:"channel"`
+		}{}, "txid, idx"); err != nil {
 			return
 		}
 
@@ -301,7 +321,9 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 			Description     sql.NullString `db:"description"`
 			Faildirection   sql.NullInt64  `db:"faildirection"`
 			Bolt11          sql.NullString `db:"bolt11"`
-		}{}, "id"); err != nil {
+			TotalMsat       int64          `db:"total_msat"`
+			PartId          int64          `db:"partid"`
+		}{}, "payment_hash, partid"); err != nil {
 			return
 		}
 
@@ -318,6 +340,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 			PaidTimestamp    sql.NullInt64 `db:"paid_timestamp"`
 			Bolt11           string        `db:"bolt11"`
 			Description      string        `db:"description"`
+			Features         sqlblob       `db:"features"`
 		}{}, "id"); err != nil {
 			return
 		}
@@ -330,7 +353,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 			InMsatoshi     int64         `db:"in_msatoshi"`
 			OutMsatoshi    sql.NullInt64 `db:"out_msatoshi"`
 			State          int64         `db:"state"`
-			ReceivedTime   sql.NullInt64 `db:"received_time"`
+			ReceivedTime   int64         `db:"received_time"`
 			ResolvedTime   sql.NullInt64 `db:"resolved_time"`
 			Failcode       sql.NullInt64 `db:"failcode"`
 		}{}, "in_htlc_id, out_htlc_id"); err != nil {
