@@ -25,7 +25,8 @@ Usage:
   mcldsp -sqlite=<sqlite_file> -postgres=<postgres_dsn> -lightningd=<lightningd_executable>
 `
 
-var lite *sqlx.DB
+var sqlt *sqlx.DB
+var lite *sqlx.Tx
 var pg *sqlx.DB
 var err error
 
@@ -42,11 +43,13 @@ func main() {
 
 	fmt.Println("  > connecting to sqlite and postgres.")
 
-	lite, err = sqlx.Connect("sqlite3", *sqlite)
+	sqlt, err = sqlx.Connect("sqlite3", *sqlite)
 	if err != nil {
 		fmt.Println("sqlite connection error", err)
 		return
 	}
+	lite = sqlt.MustBegin()
+	defer lite.Rollback()
 
 	pg, err = sqlx.Connect("postgres", *postgres)
 	if err != nil {
@@ -149,6 +152,9 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 			return
 		}
 	}
+
+	// fix sqlite's invoices.features if there are wrong fields
+	lite.Exec(`UPDATE invoices SET features = '' WHERE length(features) = 0`)
 
 	// update all the other tables except version and db_upgrades
 	if err := copyRows(pgx, "blocks", struct {
