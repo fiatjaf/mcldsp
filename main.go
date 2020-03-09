@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
@@ -64,7 +65,9 @@ func main() {
 		)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
-		cmd.Run()
+		cmd.Start()
+		time.Sleep(time.Second * 5)
+		cmd.Process.Kill()
 	}
 
 	// check tables are created
