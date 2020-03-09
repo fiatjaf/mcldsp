@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/kr/pretty"
 )
 
 func copyRows(pgx *sqlx.Tx, tableName string, kind interface{}, unique string) (err error) {
@@ -31,7 +32,8 @@ func copyRows(pgx *sqlx.Tx, tableName string, kind interface{}, unique string) (
 		vpointer := reflect.New(typ).Interface()
 		err := rows.StructScan(vpointer)
 		if err != nil {
-			fmt.Println(vpointer, "error scanning "+tableName+" row", err)
+			pretty.Log(vpointer)
+			fmt.Println("error scanning "+tableName+" row", err)
 			return err
 		}
 
@@ -41,7 +43,8 @@ VALUES (`+strings.Join(valuelabels, ",")+`)
 ON CONFLICT (`+unique+`) DO NOTHING
             `, vpointer)
 		if err != nil {
-			fmt.Println(vpointer, "error inserting "+tableName, err)
+			pretty.Log(vpointer)
+			fmt.Println("error inserting "+tableName, err)
 			return err
 		}
 	}

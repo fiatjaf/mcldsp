@@ -192,11 +192,10 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 		DelayedPaymentBasepointRemote sqlblob        `db:"delayed_payment_basepoint_remote"`
 		PerCommitRemote               sqlblob        `db:"per_commit_remote"`
 		OldPerCommitRemote            sqlblob        `db:"old_per_commit_remote"`
-		LocalFeeratePerKw             int64          `db:"local_feerate_per_kw"`
-		RemoteFeeratePerKw            int64          `db:"remote_feerate_per_kw"`
+		LocalFeeratePerKw             sql.NullInt64  `db:"local_feerate_per_kw"`
+		RemoteFeeratePerKw            sql.NullInt64  `db:"remote_feerate_per_kw"`
 		ShachainRemoteId              int64          `db:"shachain_remote_id"`
-		ShutdownScriptpubkeyLocal     sqlblob        `db:"shutdown_scriptpubkey_local"`
-		ShutdownScriptpubkeyRemote    sqlblob        `db:"shutdown_scriptpubkey_remote"`
+		ShutdownScriptPubKeyRemote    sqlblob        `db:"shutdown_scriptpubkey_remote"`
 		ShutdownKeyidxLocal           int64          `db:"shutdown_keyidx_local"`
 		LastSentCommitState           sql.NullInt64  `db:"last_sent_commit_state"`
 		LastSentCommitId              sql.NullInt64  `db:"last_sent_commit_id"`
@@ -226,6 +225,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 		RemoteAnnNodeSig              sqlblob        `db:"remote_ann_node_sig"`
 		RemoteAnnBitcoinSig           sqlblob        `db:"remote_ann_bitcoin_sig"`
 		OptionStaticRemotekey         int64          `db:"option_static_remotekey"`
+		ShutdownScriptPubKeyLocal     sqlblob        `db:"shutdown_scriptpubkey_local"`
 	}{}, "id"); err != nil {
 		return
 	}
@@ -255,6 +255,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 		SharedSecret   sqlblob       `db:"shared_secret"`
 		ReceivedTime   sql.NullInt64 `db:"received_time"`
 		LocalFailMsg   sqlblob       `db:"localfailmsg"`
+		PartId         sql.NullInt64 `db:"partid"`
 	}{}, "id"); err != nil {
 		return
 	}
@@ -303,7 +304,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 		CommitmentPoint    sqlblob       `db:"commitment_point"`
 		ConfirmationHeight int64         `db:"confirmation_height"`
 		SpendHeight        sql.NullInt64 `db:"spend_height"`
-		Scriptpubkey       sqlblob       `db:"scriptpubkey"`
+		ScriptPubKey       sqlblob       `db:"scriptpubkey"`
 	}{}, "prev_out_tx, prev_out_index"); err != nil {
 		return
 	}
@@ -393,7 +394,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 		Blockheight  int64         `db:"blockheight"`
 		Spendheight  sql.NullInt64 `db:"spendheight"`
 		Txindex      int64         `db:"txindex"`
-		Scriptpubkey sqlblob       `db:"scriptpubkey"`
+		ScriptPubKey sqlblob       `db:"scriptpubkey"`
 		Satoshis     int64         `db:"satoshis"`
 	}{}, "txid, outnum"); err != nil {
 		return
@@ -415,7 +416,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 	if err := setSequence("invoices_id_seq"); err != nil {
 		return
 	}
-	if err := setSequence("payments_id_seq1"); err != nil {
+	if err := setSequence("payments_id_seq"); err != nil {
 		return
 	}
 	if err := setSequence("peers_id_seq"); err != nil {
