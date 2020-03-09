@@ -40,6 +40,8 @@ func main() {
 		return
 	}
 
+	fmt.Println("  > connecting to sqlite and postgres.")
+
 	lite, err = sqlx.Connect("sqlite3", *sqlite)
 	if err != nil {
 		fmt.Println("sqlite connection error", err)
@@ -56,6 +58,8 @@ func main() {
 	var tablecount int
 	err = pg.Get(&tablecount, "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'")
 	if tablecount == 0 {
+		fmt.Println("  > starting lightningd so it will create the needed postgres tables.")
+
 		// if not, create database structure
 		lightningd := *lightningd
 		cmd := exec.Command(lightningd,
@@ -68,6 +72,8 @@ func main() {
 		cmd.Start()
 		time.Sleep(time.Second * 5)
 		cmd.Process.Kill()
+
+		fmt.Println("  > database schema created.")
 	}
 
 	// check tables are created
@@ -89,6 +95,8 @@ func main() {
 	}
 
 	// check version
+	fmt.Println("  > checking if database versions are correct.")
+
 	var dbversionlite int
 	var dbversionpg int
 	err1 := lite.Get(&dbversionlite, "SELECT version FROM version")
@@ -103,6 +111,8 @@ func main() {
 	}
 
 	// start updating on a big transaction
+	fmt.Println("  > moving data from sqlite to postgres in a big db transaction.")
+
 	pgx, err := pg.Beginx()
 	if err != nil {
 		fmt.Println(err)
@@ -435,4 +445,6 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 		fmt.Println("error on final commit", err)
 		return
 	}
+
+	fmt.Println("  > all data moved. you should now stop using sqlite and use postgres only.")
 }
