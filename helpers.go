@@ -15,6 +15,9 @@ func (b *sqlblob) Scan(value interface{}) error {
 	case []byte:
 		*b = sqlblob(v)
 		return nil
+	case string:
+		*b = sqlblob(v)
+		return nil
 	default:
 		return errors.New("sqlblob: value is not binary")
 	}
