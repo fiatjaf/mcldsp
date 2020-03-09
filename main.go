@@ -15,7 +15,6 @@ import (
 )
 
 const version = 131
-const expectedTableCount = 20
 const USAGE = `
 mcldsp
 
@@ -77,6 +76,8 @@ func main() {
 		cmd.Process.Kill()
 
 		fmt.Println("  > database schema created.")
+	} else {
+		fmt.Println("  > database schema was already created.")
 	}
 
 	// check tables are created
@@ -85,7 +86,7 @@ func main() {
 	lite.Get(&expectedTableCount, "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name != 'android_metadata' AND name != 'sqlite_sequence'")
 	pg.Get(&createdTableCount, "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'")
 	if expectedTableCount != createdTableCount || createdTableCount < 18 {
-		fmt.Printf("postgres database structure wasn't created correctly: %v (expected %d tables to be created, got %d)\n", err, tablecount, createdTableCount)
+		fmt.Printf("postgres database structure wasn't created correctly: %v (expected %d tables to be created, got %d)\n", err, expectedTableCount, createdTableCount)
 		return
 	}
 

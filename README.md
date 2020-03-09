@@ -20,4 +20,4 @@ Because Postgres is very good, and it can replicate writes instantly with instan
 
 ### Now you're ready!
 
-If you want to setup instant replication go over to https://www.postgresql.org/docs/current/high-availability.html
+If you want to setup replication go over to https://www.postgresql.org/docs/current/high-availability.html
