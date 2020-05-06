@@ -202,6 +202,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 		FundingTxId                   sqlblob        `db:"funding_tx_id"`
 		FundingTxOutnum               int64          `db:"funding_tx_outnum"`
 		FundingSatoshi                int64          `db:"funding_satoshi"`
+		OurFundingSatoshi             int64          `db:"our_funding_satoshi"`
 		FundingLockedRemote           int64          `db:"funding_locked_remote"`
 		PushMsatoshi                  int64          `db:"push_msatoshi"`
 		MsatoshiLocal                 int64          `db:"msatoshi_local"`
