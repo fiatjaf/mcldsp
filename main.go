@@ -421,6 +421,16 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 		return
 	}
 
+	if err := copyRows(pgx, "penalty_bases", struct {
+		ChannelId int64   `db:"channel_id"`
+		CommitNum int64   `db:"commitnum"`
+		Txid      sqlblob `db:"txid"`
+		OutNum    int     `db:"outnum"`
+		Amount    int64   `db:"amount"`
+	}{}, "channel_id, commitnum"); err != nil {
+		return
+	}
+
 	// update sequences
 	if err := setSequence("channel_configs_id_seq"); err != nil {
 		return
