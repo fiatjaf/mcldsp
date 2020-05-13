@@ -277,6 +277,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 		ReceivedTime   sql.NullInt64 `db:"received_time"`
 		LocalFailMsg   sqlblob       `db:"localfailmsg"`
 		PartId         sql.NullInt64 `db:"partid"`
+		WeFilled       sql.NullInt64 `db:"we_filled"`
 	}{}, "id"); err != nil {
 		return
 	}
