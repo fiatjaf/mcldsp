@@ -327,6 +327,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 		ConfirmationHeight int64         `db:"confirmation_height"`
 		SpendHeight        sql.NullInt64 `db:"spend_height"`
 		ScriptPubKey       sqlblob       `db:"scriptpubkey"`
+		ReservedTil        sql.NullInt64 `db:"reserved_til"`
 	}{}, "prev_out_tx, prev_out_index"); err != nil {
 		return
 	}
