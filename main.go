@@ -247,6 +247,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 		RemoteAnnBitcoinSig           sqlblob        `db:"remote_ann_bitcoin_sig"`
 		OptionStaticRemotekey         int64          `db:"option_static_remotekey"`
 		ShutdownScriptPubKeyLocal     sqlblob        `db:"shutdown_scriptpubkey_local"`
+		OptionAnchorOutputs           int64          `db:"option_anchor_outputs"`
 	}{}, "id"); err != nil {
 		return
 	}
@@ -315,19 +316,20 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 	}
 
 	if err := copyRows(pgx, "outputs", struct {
-		PrevOutTx          sqlblob       `db:"prev_out_tx"`
-		PrevOutIndex       int64         `db:"prev_out_index"`
-		Value              int64         `db:"value"`
-		Type               int64         `db:"type"`
-		Status             int64         `db:"status"`
-		Keyindex           int64         `db:"keyindex"`
-		ChannelId          sql.NullInt64 `db:"channel_id"`
-		PeerId             sqlblob       `db:"peer_id"`
-		CommitmentPoint    sqlblob       `db:"commitment_point"`
-		ConfirmationHeight int64         `db:"confirmation_height"`
-		SpendHeight        sql.NullInt64 `db:"spend_height"`
-		ScriptPubKey       sqlblob       `db:"scriptpubkey"`
-		ReservedTil        sql.NullInt64 `db:"reserved_til"`
+		PrevOutTx           sqlblob       `db:"prev_out_tx"`
+		PrevOutIndex        int64         `db:"prev_out_index"`
+		Value               int64         `db:"value"`
+		Type                int64         `db:"type"`
+		Status              int64         `db:"status"`
+		Keyindex            int64         `db:"keyindex"`
+		ChannelId           sql.NullInt64 `db:"channel_id"`
+		PeerId              sqlblob       `db:"peer_id"`
+		CommitmentPoint     sqlblob       `db:"commitment_point"`
+		ConfirmationHeight  int64         `db:"confirmation_height"`
+		SpendHeight         sql.NullInt64 `db:"spend_height"`
+		ScriptPubKey        sqlblob       `db:"scriptpubkey"`
+		ReservedTil         sql.NullInt64 `db:"reserved_til"`
+		OptionAnchorOutputs int64         `db:"option_anchor_outputs"`
 	}{}, "prev_out_tx, prev_out_index"); err != nil {
 		return
 	}
