@@ -249,6 +249,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 		ShutdownScriptPubKeyLocal     sqlblob        `db:"shutdown_scriptpubkey_local"`
 		OptionAnchorOutputs           int64          `db:"option_anchor_outputs"`
 		FullChannelId                 sqlblob        `db:"full_channel_id"`
+		FundingPSBT                   sqlblob        `db:"funding_psbt"`
 	}{}, "id"); err != nil {
 		return
 	}
