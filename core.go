@@ -28,6 +28,11 @@ func copyRows(pgx *sqlx.Tx, tableName string, kind interface{}, unique string) (
 		return err
 	}
 
+	uniqueStmt := ""
+	if unique != "" {
+		uniqueStmt = `ON CONFLICT (` + unique + `) DO NOTHING`
+	}
+
 	for rows.Next() {
 		vpointer := reflect.New(typ).Interface()
 		err := rows.StructScan(vpointer)
@@ -40,7 +45,7 @@ func copyRows(pgx *sqlx.Tx, tableName string, kind interface{}, unique string) (
 		_, err = pgx.NamedExec(`
 INSERT INTO `+tableName+`
 VALUES (`+strings.Join(valuelabels, ",")+`)
-ON CONFLICT (`+unique+`) DO NOTHING
+`+uniqueStmt+`
             `, vpointer)
 		if err != nil {
 			pretty.Log(vpointer)

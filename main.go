@@ -437,6 +437,17 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 		return
 	}
 
+	if err := copyRows(pgx, "channel_state_changes", struct {
+		ChannelId int64  `db:"channel_id"`
+		Timestamp int64  `db:"timestamp"`
+		OldState  int64  `db:"old_state"`
+		NewState  int64  `db:"new_state"`
+		Cause     int64  `db:"cause"`
+		Message   string `db:"message"`
+	}{}, ""); err != nil {
+		return
+	}
+
 	// update sequences
 	if err := setSequence("channel_configs_id_seq"); err != nil {
 		return
