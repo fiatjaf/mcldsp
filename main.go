@@ -250,6 +250,8 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 		OptionAnchorOutputs           int64          `db:"option_anchor_outputs"`
 		FullChannelId                 sqlblob        `db:"full_channel_id"`
 		FundingPSBT                   sqlblob        `db:"funding_psbt"`
+		Closer                        int64          `db:"closer"`
+		StateChangeReason             int64          `db:"state_change_reason"`
 	}{}, "id"); err != nil {
 		return
 	}
