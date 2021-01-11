@@ -49,7 +49,8 @@ VALUES (`+strings.Join(valuelabels, ",")+`)
             `, vpointer)
 		if err != nil {
 			pretty.Log(vpointer)
-			fmt.Println("error inserting "+tableName, err)
+			pretty.Log(err)
+			fmt.Println("error inserting on '" + tableName + "': " + err.Error())
 			return err
 		}
 	}
