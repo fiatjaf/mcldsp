@@ -14,7 +14,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const version = 131
+const version = 149
 const USAGE = `
 mcldsp
 
