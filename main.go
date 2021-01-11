@@ -202,6 +202,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 		FundingTxId                   sqlblob        `db:"funding_tx_id"`
 		FundingTxOutnum               int64          `db:"funding_tx_outnum"`
 		FundingSatoshi                int64          `db:"funding_satoshi"`
+		FundingTxRemoteSigsReceived   int64          `db:"funding_tx_remote_sigs_received"`
 		OurFundingSatoshi             int64          `db:"our_funding_satoshi"`
 		FundingLockedRemote           int64          `db:"funding_locked_remote"`
 		PushMsatoshi                  int64          `db:"push_msatoshi"`
@@ -363,6 +364,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 		Bolt11          sql.NullString `db:"bolt11"`
 		TotalMsat       int64          `db:"total_msat"`
 		PartId          int64          `db:"partid"`
+		LocalOfferId    sqlblob        `db:"local_offer_id"`
 	}{}, "payment_hash, partid"); err != nil {
 		return
 	}
@@ -381,6 +383,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 		Bolt11           string        `db:"bolt11"`
 		Description      string        `db:"description"`
 		Features         sqlblob       `db:"features"`
+		LocalOfferId     sqlblob       `db:"local_offer_id"`
 	}{}, "id"); err != nil {
 		return
 	}
@@ -447,6 +450,15 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 		Cause     int64  `db:"cause"`
 		Message   string `db:"message"`
 	}{}, ""); err != nil {
+		return
+	}
+
+	if err := copyRows(pgx, "offers", struct {
+		OfferId sqlblob `db:"offer_id"`
+		Bolt12  string  `db:"bolt12"`
+		Label   string  `db:"label"`
+		Status  int64   `db:"status"`
+	}{}, "offer_id"); err != nil {
 		return
 	}
 
