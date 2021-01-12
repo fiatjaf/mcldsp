@@ -17,9 +17,12 @@ func copyRows(pgx *sqlx.Tx, tableName string, kind interface{}, unique string) (
 	}
 
 	nfields := typ.NumField()
+	columnnames := make([]string, nfields)
 	valuelabels := make([]string, nfields)
+	values := make([]interface{}, nfields)
 	for i := 0; i < nfields; i++ {
-		valuelabels[i] = ":" + typ.Field(i).Tag.Get("db")
+		valuelabels[i] = fmt.Sprintf("$%d", i+1)
+		columnnames[i] = typ.Field(i).Tag.Get("db")
 	}
 
 	rows, err := lite.Queryx(`SELECT * FROM ` + tableName)
@@ -42,11 +45,15 @@ func copyRows(pgx *sqlx.Tx, tableName string, kind interface{}, unique string) (
 			return err
 		}
 
-		_, err = pgx.NamedExec(`
-INSERT INTO `+tableName+`
+		for i := 0; i < nfields; i++ {
+			values[i] = reflect.Indirect(reflect.ValueOf(vpointer)).Field(i).Interface()
+		}
+
+		_, err = pgx.Exec(`
+INSERT INTO `+tableName+` (`+strings.Join(columnnames, ",")+`)
 VALUES (`+strings.Join(valuelabels, ",")+`)
-`+uniqueStmt+`
-            `, vpointer)
+`+uniqueStmt,
+			values...)
 		if err != nil {
 			pretty.Log(vpointer)
 			pretty.Log(err)

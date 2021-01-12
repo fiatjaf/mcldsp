@@ -248,7 +248,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 		RemoteAnnBitcoinSig           sqlblob        `db:"remote_ann_bitcoin_sig"`
 		OptionStaticRemotekey         int64          `db:"option_static_remotekey"`
 		ShutdownScriptPubKeyLocal     sqlblob        `db:"shutdown_scriptpubkey_local"`
-		OptionAnchorOutputs           int64          `db:"option_anchor_outputs"`
+		OptionAnchorOutputs           sql.NullInt64  `db:"option_anchor_outputs"`
 		FullChannelId                 sqlblob        `db:"full_channel_id"`
 		FundingPSBT                   sqlblob        `db:"funding_psbt"`
 		Closer                        int64          `db:"closer"`
@@ -334,7 +334,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 		SpendHeight         sql.NullInt64 `db:"spend_height"`
 		ScriptPubKey        sqlblob       `db:"scriptpubkey"`
 		ReservedTil         sql.NullInt64 `db:"reserved_til"`
-		OptionAnchorOutputs int64         `db:"option_anchor_outputs"`
+		OptionAnchorOutputs sql.NullInt64 `db:"option_anchor_outputs"`
 	}{}, "prev_out_tx, prev_out_index"); err != nil {
 		return
 	}
