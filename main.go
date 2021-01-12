@@ -370,20 +370,20 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 	}
 
 	if err := copyRows(pgx, "invoices", struct {
-		Id               int64         `db:"id"`
-		State            int64         `db:"state"`
-		Msatoshi         sql.NullInt64 `db:"msatoshi"`
-		PaymentHash      sqlblob       `db:"payment_hash"`
-		PaymentKey       sqlblob       `db:"payment_key"`
-		Label            string        `db:"label"`
-		ExpiryTime       int64         `db:"expiry_time"`
-		PayIndex         sql.NullInt64 `db:"pay_index"`
-		MsatoshiReceived sql.NullInt64 `db:"msatoshi_received"`
-		PaidTimestamp    sql.NullInt64 `db:"paid_timestamp"`
-		Bolt11           string        `db:"bolt11"`
-		Description      string        `db:"description"`
-		Features         sqlblob       `db:"features"`
-		LocalOfferId     sqlblob       `db:"local_offer_id"`
+		Id               int64          `db:"id"`
+		State            int64          `db:"state"`
+		Msatoshi         sql.NullInt64  `db:"msatoshi"`
+		PaymentHash      sqlblob        `db:"payment_hash"`
+		PaymentKey       sqlblob        `db:"payment_key"`
+		Label            string         `db:"label"`
+		ExpiryTime       int64          `db:"expiry_time"`
+		PayIndex         sql.NullInt64  `db:"pay_index"`
+		MsatoshiReceived sql.NullInt64  `db:"msatoshi_received"`
+		PaidTimestamp    sql.NullInt64  `db:"paid_timestamp"`
+		Bolt11           string         `db:"bolt11"`
+		Description      sql.NullString `db:"description"`
+		Features         sqlblob        `db:"features"`
+		LocalOfferId     sqlblob        `db:"local_offer_id"`
 	}{}, "id"); err != nil {
 		return
 	}
