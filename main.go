@@ -330,7 +330,7 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 		ChannelId           sql.NullInt64 `db:"channel_id"`
 		PeerId              sqlblob       `db:"peer_id"`
 		CommitmentPoint     sqlblob       `db:"commitment_point"`
-		ConfirmationHeight  int64         `db:"confirmation_height"`
+		ConfirmationHeight  sql.NullInt64 `db:"confirmation_height"`
 		SpendHeight         sql.NullInt64 `db:"spend_height"`
 		ScriptPubKey        sqlblob       `db:"scriptpubkey"`
 		ReservedTil         sql.NullInt64 `db:"reserved_til"`
