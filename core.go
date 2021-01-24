@@ -81,11 +81,10 @@ func setSequence(sequenceName string) (err error) {
 		return
 	}
 
-	nextval := maxval + 1
-	_, err = pg.Exec(`SELECT setval('`+sequenceName+`', $1)`, nextval)
+	_, err = pg.Exec(`SELECT setval('`+sequenceName+`', $1)`, maxval)
 	if err != nil {
-		fmt.Println("error setting sequence (this is fine in cockroachdb)",
-			sequenceName, err)
+		fmt.Println("error setting sequence", sequenceName, err)
+		return
 	}
 
 	return nil
