@@ -463,29 +463,38 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 	}
 
 	// update sequences
-	if err := setSequence("channel_configs_id_seq"); err != nil {
-		return
-	}
-	if err := setSequence("channel_htlcs_id_seq"); err != nil {
-		return
-	}
-	if err := setSequence("channels_id_seq"); err != nil {
-		return
-	}
-	if err := setSequence("channeltxs_id_seq"); err != nil {
-		return
-	}
-	if err := setSequence("invoices_id_seq"); err != nil {
-		return
-	}
-	if err := setSequence("payments_id_seq"); err != nil {
-		return
-	}
-	if err := setSequence("peers_id_seq"); err != nil {
-		return
-	}
-	if err := setSequence("shachains_id_seq"); err != nil {
-		return
+	var version string
+	if err := pg.Get(&version, "SELECT version()"); err != nil {
+		fmt.Println("failed to get database version")
+	} else {
+		if strings.Index(version, "CockroachDB") != -1 {
+			// skip this part in cockroach
+		} else {
+			if err := setSequence("channel_configs_id_seq"); err != nil {
+				return
+			}
+			if err := setSequence("channel_htlcs_id_seq"); err != nil {
+				return
+			}
+			if err := setSequence("channels_id_seq"); err != nil {
+				return
+			}
+			if err := setSequence("channeltxs_id_seq"); err != nil {
+				return
+			}
+			if err := setSequence("invoices_id_seq"); err != nil {
+				return
+			}
+			if err := setSequence("payments_id_seq"); err != nil {
+				return
+			}
+			if err := setSequence("peers_id_seq"); err != nil {
+				return
+			}
+			if err := setSequence("shachains_id_seq"); err != nil {
+				return
+			}
+		}
 	}
 
 	// end it
