@@ -81,7 +81,8 @@ func setSequence(sequenceName string) (err error) {
 		return
 	}
 
-	_, err = pg.Exec(`SELECT setval('`+sequenceName+`', $1)`, maxval)
+	nextval := maxval + 1
+	_, err = pg.Exec(`SELECT setval('`+sequenceName+`', $1)`, nextval)
 	if err != nil {
 		fmt.Println("error setting sequence", sequenceName, err)
 		return
