@@ -14,7 +14,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const version = 149
+const version = 150
 const USAGE = `
 mcldsp
 
@@ -253,6 +253,13 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 		FundingPSBT                   sqlblob        `db:"funding_psbt"`
 		Closer                        int64          `db:"closer"`
 		StateChangeReason             int64          `db:"state_change_reason"`
+		RevocationBasepointLocal      sqlblob        `db:"revocation_basepoint_local"`
+		PaymentBasepointLocal         sqlblob        `db:"payment_basepoint_local"`
+		HTLCBasepointLocal            sqlblob        `db:"htlc_basepoint_local"`
+		DelayedPaymentBasepointLocal  sqlblob        `db:"delayed_payment_basepoint_local"`
+		FundingPubkeyLocal            sqlblob        `db:"funding_pubkey_local"`
+		ShutdownWrongTxid             sqlblob        `db:"shutdown_wrong_txid"`
+		ShutdownWrongOutnum           int            `db:"shutdown_wrong_outnum"`
 	}{}, "id"); err != nil {
 		return
 	}
@@ -459,6 +466,21 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 		Label   string  `db:"label"`
 		Status  int64   `db:"status"`
 	}{}, "offer_id"); err != nil {
+		return
+	}
+
+	if err := copyRows(pgx, "channel_funding_inflights", struct {
+		ChannelId                   int64   `db:"channel_id"`
+		FundingTxId                 sqlblob `db:"funding_tx_id"`
+		FundingTxOutnum             int     `db:"funding_tx_outnum"`
+		FundingFeerate              int     `db:"funding_feerate"`
+		FundingSatoshi              int64   `db:"funding_satoshi"`
+		OurFundingSatoshi           int64   `db:"our_funding_satoshi"`
+		FundingPSBT                 sqlblob `db:"funding_psbt"`
+		LastTx                      sqlblob `db:"last_tx"`
+		LastSig                     sqlblob `db:"last_sig"`
+		FundingTxRemoteSigsReceived int     `db:"funding_tx_remote_sigs_received"`
+	}{}, "channel_id, funding_tx_id"); err != nil {
 		return
 	}
 
