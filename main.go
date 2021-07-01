@@ -260,6 +260,8 @@ ON CONFLICT (name) DO UPDATE SET val=:val, intval=:intval, blobval=:blobval
 		FundingPubkeyLocal            sqlblob        `db:"funding_pubkey_local"`
 		ShutdownWrongTxid             sqlblob        `db:"shutdown_wrong_txid"`
 		ShutdownWrongOutnum           int            `db:"shutdown_wrong_outnum"`
+		LocalStaticRemotekeyStart     int64          `db:"local_static_remotekey_start"`
+		RemoteStaticRemotekeyStart    int64          `db:"remote_static_remotekey_start"`
 	}{}, "id"); err != nil {
 		return
 	}
