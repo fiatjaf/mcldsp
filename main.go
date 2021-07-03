@@ -14,7 +14,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const version = 150
+const version = 162
 const USAGE = `
 mcldsp
 
@@ -72,7 +72,7 @@ func main() {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Start()
-		time.Sleep(time.Second * 5)
+		time.Sleep(time.Second * 35)
 		cmd.Process.Kill()
 
 		fmt.Println("  > database schema created.")
